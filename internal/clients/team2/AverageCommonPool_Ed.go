@@ -1,4 +1,4 @@
-//this pseudo code determines how much to contribute to the common pool depending on whether other agents are altruists,fair sharers etc
+//this function determines how much to contribute to the common pool depending on whether other agents are altruists,fair sharers etc
 //it only needs the current resource level and the current turn as inputs
 //the output will be an integer which is a recommendation on how much to add to the pool, with this recommendation there will be a weighting of how important it is we contribute that exact amount
 //this will be a part of other decision making functions which will have their own weights 
