@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Navbar, Nav } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap'
 import { Link } from 'react-router-dom';
+import { cioutput, newrun } from '../../../consts/paths';
 import logo from '../../../assets/logo/logo192.png';
 import outputJSONData from '../../../output/output.json'
 
@@ -36,14 +37,16 @@ const AppNavbar = () => {
             </Link>
 
             <a rel="noopener noreferrer" target="_blank" href={outputJSONData.GitInfo.GithubURL} className="lightbluelink">
-                {outputJSONData.GitInfo.ShortHash}
+                {outputJSONData.GitInfo.Hash.substr(0, 7)}
             </a>
 
 
             <Navbar.Toggle aria-controls="basic-navbar-nav" onClick={closeNav} />
             <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
                 <Nav className="mr-auto" />
-                {getNavLink("Raw Output", "/rawoutput")}
+                {getNavLink("New Run", newrun)}
+                {getNavLink("CI Output", cioutput)}
+                
             </Navbar.Collapse>
         </Navbar>
     </>

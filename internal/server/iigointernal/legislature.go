@@ -1,23 +1,33 @@
 package iigointernal
 
 import (
+	"fmt"
+
 	"github.com/SOMAS2020/SOMAS2020/internal/common/baseclient"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/gamestate"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/roles"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/rules"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/shared"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/voting"
-	"github.com/pkg/errors"
 )
 
 type legislature struct {
-	SpeakerID     shared.ClientID
-	budget        shared.Resources
-	judgeSalary   shared.Resources
-	ruleToVote    string
-	ballotBox     voting.BallotBox
-	votingResult  bool
-	clientSpeaker roles.Speaker
+	SpeakerID         shared.ClientID
+	budget            shared.Resources
+	judgeSalary       shared.Resources
+	ruleToVote        string
+	ballotBox         voting.BallotBox
+	votingResult      bool
+	clientSpeaker     roles.Speaker
+	judgeTurnsInPower int
+}
+
+// loadClientSpeaker checks client pointer is good and if not panics
+func (l *legislature) loadClientSpeaker(clientSpeakerPointer roles.Speaker) {
+	if clientSpeakerPointer == nil {
+		panic(fmt.Sprintf("Client '%v' has loaded a nil speaker pointer", l.SpeakerID))
+	}
+	l.clientSpeaker = clientSpeakerPointer
 }
 
 // returnJudgeSalary returns the salary to the common pool.
@@ -39,7 +49,7 @@ func (l *legislature) withdrawJudgeSalary(gameState *gamestate.GameState) bool {
 // sendJudgeSalary sets the budget of the Judge.
 func (l *legislature) sendJudgeSalary(judicialBranch *judiciary) {
 	if l.clientSpeaker != nil {
-		amount, judgePaid := l.clientSpeaker.PayJudge()
+		amount, judgePaid := l.clientSpeaker.PayJudge(l.judgeSalary)
 		if judgePaid {
 			judicialBranch.budget = amount
 		}
@@ -137,22 +147,20 @@ func (l *legislature) reset() {
 // updateRules updates the rules in play according to the result of a vote.
 func (l *legislature) updateRules(ruleName string, ruleVotedIn bool) error {
 	l.budget -= serviceCharge
-	//TODO: might want to log the errors as normal messages rather than completely ignoring them? But then Speaker needs access to client's logger
-	notInRulesCache := errors.Errorf("Rule '%v' is not available in rules cache", ruleName)
 	if ruleVotedIn {
 		// _ = rules.PullRuleIntoPlay(ruleName)
 		err := rules.PullRuleIntoPlay(ruleName)
-		if err != nil {
-			if err.Error() == notInRulesCache.Error() {
-				return err
+		if ruleErr, ok := err.(*rules.RuleError); ok {
+			if ruleErr.Type() == rules.RuleNotInAvailableRulesCache {
+				return ruleErr
 			}
 		}
 	} else {
 		// _ = rules.PullRuleOutOfPlay(ruleName)
 		err := rules.PullRuleOutOfPlay(ruleName)
-		if err != nil {
-			if err.Error() == notInRulesCache.Error() {
-				return err
+		if ruleErr, ok := err.(*rules.RuleError); ok {
+			if ruleErr.Type() == rules.RuleNotInAvailableRulesCache {
+				return ruleErr
 			}
 		}
 
@@ -161,11 +169,22 @@ func (l *legislature) updateRules(ruleName string, ruleVotedIn bool) error {
 
 }
 
-func (l *legislature) appointNextJudge(clientIDs []shared.ClientID) shared.ClientID {
-	l.budget -= serviceCharge
+// appointNextJudge returns the island ID of the island appointed to be Judge in the next turn
+func (l *legislature) appointNextJudge(currentJudge shared.ClientID, allIslands []shared.ClientID) shared.ClientID {
 	var election voting.Election
-	election.ProposeElection(baseclient.Judge, voting.Plurality)
-	election.OpenBallot(clientIDs)
-	election.Vote(iigoClients)
-	return election.CloseBallot()
+	var nextJudge shared.ClientID
+	electionsettings := l.clientSpeaker.CallJudgeElection(l.judgeTurnsInPower, allIslands)
+	if electionsettings.HoldElection {
+		// TODO: deduct the cost of holding an election
+		election.ProposeElection(baseclient.President, electionsettings.VotingMethod)
+		election.OpenBallot(electionsettings.IslandsToVote)
+		election.Vote(iigoClients)
+		l.judgeTurnsInPower = 0
+		nextJudge = election.CloseBallot()
+		nextJudge = l.clientSpeaker.DecideNextJudge(nextJudge)
+	} else {
+		l.judgeTurnsInPower++
+		nextJudge = currentJudge
+	}
+	return nextJudge
 }

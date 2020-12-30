@@ -1,6 +1,8 @@
 package iigointernal
 
 import (
+	"fmt"
+
 	"github.com/SOMAS2020/SOMAS2020/internal/common/baseclient"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/gamestate"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/roles"
@@ -10,12 +12,21 @@ import (
 )
 
 type executive struct {
-	ID               shared.ClientID
-	clientPresident  roles.President
-	budget           shared.Resources
-	speakerSalary    shared.Resources
-	RulesProposals   []string
-	ResourceRequests map[shared.ClientID]shared.Resources
+	ID                  shared.ClientID
+	clientPresident     roles.President
+	budget              shared.Resources
+	speakerSalary       shared.Resources
+	RulesProposals      []string
+	ResourceRequests    map[shared.ClientID]shared.Resources
+	speakerTurnsInPower int
+}
+
+// loadClientPresident checks client pointer is good and if not panics
+func (e *executive) loadClientPresident(clientPresidentPointer roles.President) {
+	if clientPresidentPointer == nil {
+		panic(fmt.Sprintf("Client '%v' has loaded a nil president pointer", e.ID))
+	}
+	e.clientPresident = clientPresidentPointer
 }
 
 // returnSpeakerSalary returns the salary to the common pool.
@@ -97,14 +108,24 @@ func (e *executive) replyAllocationRequest(commonPool shared.Resources) {
 	}
 }
 
-// appointNextSpeaker returns the island id of the island appointed to be speaker in the next turn.
-func (e *executive) appointNextSpeaker(clientIDs []shared.ClientID) shared.ClientID {
-	e.budget -= serviceCharge
+// appointNextSpeaker returns the island ID of the island appointed to be Speaker in the next turn
+func (e *executive) appointNextSpeaker(currentSpeaker shared.ClientID, allIslands []shared.ClientID) shared.ClientID {
 	var election voting.Election
-	election.ProposeElection(baseclient.Speaker, voting.Plurality)
-	election.OpenBallot(clientIDs)
-	election.Vote(iigoClients)
-	return election.CloseBallot()
+	var nextSpeaker shared.ClientID
+	electionsettings := e.clientPresident.CallSpeakerElection(e.speakerTurnsInPower, allIslands)
+	if electionsettings.HoldElection {
+		// TODO: deduct the cost of holding an election
+		election.ProposeElection(baseclient.President, electionsettings.VotingMethod)
+		election.OpenBallot(electionsettings.IslandsToVote)
+		election.Vote(iigoClients)
+		e.speakerTurnsInPower = 0
+		nextSpeaker = election.CloseBallot()
+		nextSpeaker = e.clientPresident.DecideNextSpeaker(nextSpeaker)
+	} else {
+		e.speakerTurnsInPower++
+		nextSpeaker = currentSpeaker
+	}
+	return nextSpeaker
 }
 
 // withdrawSpeakerSalary withdraws the salary for speaker from the common pool.

@@ -13,8 +13,8 @@ type EvaluationReturn struct {
 	Evaluations []bool
 }
 type Judge interface {
-	PayPresident() (shared.Resources, bool)
-	InspectHistory() (map[shared.ClientID]EvaluationReturn, bool)
-	DeclareSpeakerPerformance() (result bool, didRole bool)
-	DeclarePresidentPerformance() (result bool, didRole bool)
+	PayPresident(presidentSalary shared.Resources) (shared.Resources, bool)
+	InspectHistory(iigoHistory []shared.Accountability) (map[shared.ClientID]EvaluationReturn, bool)
+	CallPresidentElection(int, []shared.ClientID) shared.ElectionSettings
+	DecideNextPresident(shared.ClientID) shared.ClientID
 }

@@ -1,7 +1,6 @@
 package baseclient
 
 import (
-	"github.com/SOMAS2020/SOMAS2020/internal/common/gamestate"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/roles"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/rules"
 	"github.com/SOMAS2020/SOMAS2020/internal/common/shared"
@@ -17,9 +16,9 @@ func (j *BaseJudge) PayPresident(presidentSalary shared.Resources) (shared.Resou
 }
 
 // inspectHistoryInternal is the base implementation of InspectHistory.
-func (j *BaseJudge) InspectHistory() (map[shared.ClientID]roles.EvaluationReturn, bool) {
+func (j *BaseJudge) InspectHistory(iigoHistory []shared.Accountability) (map[shared.ClientID]roles.EvaluationReturn, bool) {
 	outputMap := map[shared.ClientID]roles.EvaluationReturn{}
-	for _, entry := range gamestate.TurnHistory {
+	for _, entry := range iigoHistory {
 		variablePairs := entry.Pairs
 		clientID := entry.ClientID
 		var rulesAffected []string
@@ -53,18 +52,6 @@ func (j *BaseJudge) InspectHistory() (map[shared.ClientID]roles.EvaluationReturn
 	return outputMap, true
 }
 
-// DeclareSpeakerPerformance checks how well the speaker did their job.
-func (j *BaseJudge) DeclareSpeakerPerformance(inspectBallot bool, conductedRole bool) (result bool, didRole bool) {
-	// TODO: Implement opinion based Speaker performance declaration.
-	return inspectBallot, conductedRole
-}
-
-// DeclarePresidentPerformance checks how well the president did their job.
-func (j *BaseJudge) DeclarePresidentPerformance(inspectBallot bool, conductedRole bool) (result bool, didRole bool) {
-	// TODO: Implement opinion based President performance declaration.
-	return inspectBallot, conductedRole
-}
-
 // PickUpRulesByVariable returns a list of rule_id's which are affected by certain variables.
 func PickUpRulesByVariable(variableName rules.VariableFieldName, ruleStore map[string]rules.RuleMatrix) ([]string, bool) {
 	var Rules []string
@@ -89,4 +76,19 @@ func searchForVariableInArray(val rules.VariableFieldName, array []rules.Variabl
 		}
 	}
 	return -1, false
+}
+
+// CallPresidentElection is called by the judiciary to decide on power-transfer
+func (j *BaseJudge) CallPresidentElection(turnsInPower int, allIslands []shared.ClientID) shared.ElectionSettings {
+	var electionsettings = shared.ElectionSettings{
+		VotingMethod:  shared.Plurality,
+		IslandsToVote: allIslands,
+		HoldElection:  true,
+	}
+	return electionsettings
+}
+
+// DecideNextPresident returns the ID of chosen next President
+func (j *BaseJudge) DecideNextPresident(winner shared.ClientID) shared.ClientID {
+	return winner
 }
