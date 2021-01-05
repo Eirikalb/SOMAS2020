@@ -25,7 +25,8 @@ func (c *client) GetGiftRequests() shared.GiftRequestDict {
 	requests := shared.GiftRequestDict{}
 
 	// check our critical and threshold - if either is off - request
-	ourAgentCritical := shared.Critical == shared.ClientLifeStatus(1)
+	ourAgentCritical := criticalStatus(c)
+	// ourAgentCritical := c.ServerReadHandle.GetGameState().ClientLifeStatuses[shared.Team2]
 	requestAmount := determineAllocation(c) * 0.6
 
 	// confidence[island] * requestAmount until -> target
@@ -86,8 +87,7 @@ func (c *client) GetGiftOffers(receivedRequests shared.GiftRequestDict) shared.G
 	// if we are critical do not offer gifts-> there should be a way to see which other islands are critical
 	// if we are not critical and another island is critical offer gift
 	// do not offer more than proportion of total resources we have
-	ourAgentCritical := shared.Critical == shared.ClientLifeStatus(1)
-
+	ourAgentCritical := criticalStatus(c)
 	// prioritize giving gifts to islands we trust (for now confidence)
 
 	// Give no more than half of amount before we reach threshold
