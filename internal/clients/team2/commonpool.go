@@ -70,22 +70,25 @@ func determineTax(c *client) shared.Resources {
 
 //internalThreshold determines our internal threshold for survival, allocationrec is the output of the function AverageCommonPool which determines which role we will be
 func (c *client) internalThreshold() shared.Resources {
+	var timeRemaining float64
+	totalTurns := float64(c.gameState().Turn)
 	gameThreshold := c.determineThreshold()
 	allocationrec := AverageCommonPoolDilemma(c)
 	ourVulnerability := GetIslandDVPs(c.gameState().Geography)[c.GetID()] //TODO: get value from init function
-	//turnsLeftUntilDisaster := 3           //TODO: get this value when known
-	totalTurns := float64(c.gameState().Turn)
-	sampleMeanX, timeRemainingPrediction := GetTimeRemainingPrediction(c, totalTurns)
-	turnsLeftConfidence := GetTimeRemainingConfidence(totalTurns, sampleMeanX)
+	if c.gameConfig().DisasterConfig.DisasterPeriod.Valid {
+		period := c.gameConfig().DisasterConfig.DisasterPeriod.Value
+		timeRemaining = float64(period - (c.gameState().Turn % period))
+	} else {
+		sampleMeanX, timeRemainingPrediction := GetTimeRemainingPrediction(c, totalTurns)
+		turnsLeftConfidence := GetTimeRemainingConfidence(totalTurns, sampleMeanX)
+		timeRemaining = float64(timeRemainingPrediction) * (turnsLeftConfidence / 100)
+	}
 	//TODO: Update these to be functions more specific to our island rather than general mag
 	sampleMeanM, magnitudePrediction := GetMagnitudePrediction(c, totalTurns)
 	confidenceMagnitude := GetMagnitudeConfidence(totalTurns, sampleMeanM)
 
-	if magnitudePrediction > sampleMeanM { //larger mag than average expected
+	if magnitudePrediction > sampleMeanM || timeRemaining < 3 { //larger mag than average expected
 		return (gameThreshold + allocationrec) * shared.Resources((confidenceMagnitude/10)*(1+ourVulnerability)) //tune
-	}
-	if timeRemainingPrediction < 3 { //tune
-		return (gameThreshold + allocationrec) * shared.Resources((turnsLeftConfidence/10)*(1+ourVulnerability)) //tune
 	}
 	return gameThreshold + allocationrec
 }
