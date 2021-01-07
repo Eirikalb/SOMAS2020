@@ -42,7 +42,6 @@ func (c *client) RequestAllocation() shared.Resources {
 	return determineAllocation(c) * 0.6
 }
 
-//GetTaxContribution determines how much we put into pool
 func (c *client) GetTaxContribution() shared.Resources {
 	ourResources := c.gameState().ClientInfo.Resources
 	Taxmin := determineTax(c)

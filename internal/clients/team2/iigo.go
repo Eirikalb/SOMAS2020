@@ -73,30 +73,3 @@ func (c *client) GetSanctionPayment() shared.Resources {
 	}
 	return 0
 }
-
-func (c *client) RequestAllocation() shared.Resources {
-	// TODO: Implement request equal to the allocation permitted by President.
-	valToBeReturned := c.ServerReadHandle.GetGameState().CommonPool
-	c.LocalVariableCache[rules.IslandAllocation] = rules.VariableValuePair{
-		VariableName: rules.IslandAllocation,
-		Values:       []float64{float64(valToBeReturned)},
-	}
-	isCompliant := c.CheckCompliance(rules.IslandAllocation)
-	if isCompliant {
-		// TODO: with this compliance check, agents can see whether they'd like to continue returning this value
-		return valToBeReturned
-	}
-
-	decisionMade := c.LocalVariableCache[rules.AllocationMade].Values[len(c.LocalVariableCache[rules.AllocationMade].Values)-1] > 0
-	if decisionMade {
-		// Use the toolkit to recommend a value
-		newVal, success := c.GetRecommendation(rules.IslandAllocation)
-		if success {
-			// TODO: Choose whether to use this compliant value
-			valToBeReturned = shared.Resources(newVal.Values[rules.SingleValueVariableEntry])
-		}
-	}
-
-	return valToBeReturned
-
-}
