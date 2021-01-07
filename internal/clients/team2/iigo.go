@@ -53,28 +53,50 @@ func (c *client) getOurRole() string {
 	return "None"
 }
 
+func (c *client) SanctionHopeful() shared.Resources {
+	return 0
+}
+
+//Checks the sanction amount aginst what we expect
 func (c *client) GetSanctionPayment() shared.Resources {
 	if value, ok := c.LocalVariableCache[rules.SanctionExpected]; ok {
-		idealVal, available := c.locationService.switchDetermineFunction(rules.SanctionPaid, value.Values)
-		if available {
-			variablesChanged := map[rules.VariableFieldName]rules.VariableValuePair{
-				rules.SanctionPaid: {
-					rules.SanctionPaid,
-					idealVal,
-				},
-				rules.SanctionExpected: {
-					rules.SanctionExpected,
-					c.LocalVariableCache[rules.SanctionExpected].Values,
-				},
+		if c.gameState().ClientLifeStatuses[c.GetID()] != shared.Critical {
+			if shared.Resources(value.Values[0]) <= c.SanctionHopeful() {
+				return shared.Resources(value.Values[0])
+			} else {
+				// TODO: make switch case on agent mode.
+				return c.SanctionHopeful()
 			}
-
-			recommendedValues := c.dynamicAssistedResult(variablesChanged)
-			if c.params.complianceLevel > 80 {
-				return shared.Resources(recommendedValues[rules.SanctionPaid].Values[rules.SingleValueVariableEntry])
-			}
-			return shared.Resources(idealVal[rules.SingleValueVariableEntry])
+		} else {
+			return 0
 		}
-		return shared.Resources(value.Values[rules.SingleValueVariableEntry])
 	}
 	return 0
+}
+
+func (c *client) RequestAllocation() shared.Resources {
+	// TODO: Implement request equal to the allocation permitted by President.
+	valToBeReturned := c.ServerReadHandle.GetGameState().CommonPool
+	c.LocalVariableCache[rules.IslandAllocation] = rules.VariableValuePair{
+		VariableName: rules.IslandAllocation,
+		Values:       []float64{float64(valToBeReturned)},
+	}
+	isCompliant := c.CheckCompliance(rules.IslandAllocation)
+	if isCompliant {
+		// TODO: with this compliance check, agents can see whether they'd like to continue returning this value
+		return valToBeReturned
+	}
+
+	decisionMade := c.LocalVariableCache[rules.AllocationMade].Values[len(c.LocalVariableCache[rules.AllocationMade].Values)-1] > 0
+	if decisionMade {
+		// Use the toolkit to recommend a value
+		newVal, success := c.GetRecommendation(rules.IslandAllocation)
+		if success {
+			// TODO: Choose whether to use this compliant value
+			valToBeReturned = shared.Resources(newVal.Values[rules.SingleValueVariableEntry])
+		}
+	}
+
+	return valToBeReturned
+
 }
